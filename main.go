@@ -1,22 +1,41 @@
 package main
 
 import (
+	"database/sql"
 	"log"
 	"net/http"
 	"os"
 
+	"github.com/ethpalser/blog-aggregator/internal/database"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 )
 
+type apiConfig struct {
+	DB *database.Queries
+}
+
 func main() {
 	godotenv.Load(".env")
 	port := os.Getenv("PORT")
+	dbURL := os.Getenv("CONN")
+
+	db, dbErr := sql.Open("postgres", dbURL)
+	if dbErr != nil {
+		log.Fatalf("Failed to connect to database: %s", dbURL)
+	}
+	defer db.Close()
+
+	apiCfg := apiConfig{
+		DB: database.New(db),
+	}
 
 	mux := http.NewServeMux()
 	// Test handlers
 	mux.HandleFunc("GET /v1/readiness", handlerReady)
 	mux.HandleFunc("GET /v1/err", handlerError)
+	// Users
+	mux.HandleFunc("POST /v1/users", apiCfg.handlerCreateUser)
 
 	server := http.Server{
 		Addr:    ":" + port,
