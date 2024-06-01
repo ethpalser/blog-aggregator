@@ -12,6 +12,14 @@ import (
 	"github.com/google/uuid"
 )
 
+type FeedView struct {
+	Id        uuid.UUID `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Name      string    `json:"name"`
+	Url       string    `json:"url"`
+}
+
 func (cfg *apiConfig) handlerCreateFeed(w http.ResponseWriter, r *http.Request, u database.User) {
 	type CreateFeedReq struct {
 		Name string `json:"name"`
@@ -41,5 +49,11 @@ func (cfg *apiConfig) handlerCreateFeed(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 
-	respondWithJSON(w, http.StatusAccepted, feed)
+	respondWithJSON(w, http.StatusAccepted, FeedView{
+		Id:        feed.ID.UUID,
+		CreatedAt: feed.CreatedAt.Time,
+		UpdatedAt: feed.UpdatedAt.Time,
+		Name:      feed.Name.String,
+		Url:       feed.Url.String,
+	})
 }

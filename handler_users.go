@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/ethpalser/blog-aggregator/internal/database"
@@ -76,23 +75,7 @@ func (cfg *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Request) 
 	respondWithJSON(w, http.StatusOK, data)
 }
 
-func (cfg *apiConfig) handlerGetUserByApiKey(w http.ResponseWriter, r *http.Request) {
-	authToken := r.Header.Get("Authorization")
-	if authToken == "" {
-		respondWithError(w, http.StatusUnauthorized, "Invalid auth token")
-		return
-	}
-
-	apikey := strings.TrimPrefix(authToken, "ApiKey ")
-
-	ctx := context.Background()
-	user, dbErr := cfg.DB.GetUserByApiKey(ctx, apikey)
-	if dbErr != nil {
-		log.Printf("Error fetching user by api key: %s", dbErr.Error())
-		respondWithError(w, http.StatusInternalServerError, "Internal server error")
-		return
-	}
-
+func (cfg *apiConfig) handlerGetUserByApiKey(w http.ResponseWriter, r *http.Request, user database.User) {
 	respondWithJSON(w, http.StatusOK, UserView{
 		Id:        user.ID.UUID,
 		CreatedAt: user.CreatedAt.Time,
