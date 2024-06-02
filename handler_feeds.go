@@ -57,3 +57,29 @@ func (cfg *apiConfig) handlerCreateFeed(w http.ResponseWriter, r *http.Request, 
 		Url:       feed.Url.String,
 	})
 }
+
+func (cfg *apiConfig) handlerGetAllFeeds(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+	dbFeed, dbErr := cfg.DB.GetAllFeeds(ctx)
+	if dbErr != nil {
+		respondWithError(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+
+	resp := []FeedView{}
+	for _, feed := range dbFeed {
+		resp = append(resp, dbFeedToView(&feed))
+	}
+
+	respondWithJSON(w, http.StatusOK, resp)
+}
+
+func dbFeedToView(feed *database.Feed) FeedView {
+	return FeedView{
+		Id:        feed.ID.UUID,
+		CreatedAt: feed.CreatedAt.Time,
+		UpdatedAt: feed.UpdatedAt.Time,
+		Name:      feed.Name.String,
+		Url:       feed.Url.String,
+	}
+}
