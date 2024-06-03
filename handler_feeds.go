@@ -68,13 +68,13 @@ func (cfg *apiConfig) handlerGetAllFeeds(w http.ResponseWriter, r *http.Request)
 
 	resp := []FeedView{}
 	for _, feed := range dbFeed {
-		resp = append(resp, dbFeedToView(&feed))
+		resp = append(resp, DBFeedToView(&feed))
 	}
 
 	respondWithJSON(w, http.StatusOK, resp)
 }
 
-func dbFeedToView(feed *database.Feed) FeedView {
+func DBFeedToView(feed *database.Feed) FeedView {
 	return FeedView{
 		Id:        feed.ID.UUID,
 		CreatedAt: feed.CreatedAt.Time,
