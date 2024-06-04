@@ -5,3 +5,9 @@ RETURNING *;
 
 -- name: GetAllFeeds :many
 SELECT * FROM feeds;
+
+-- name: GetNextToFetchFeeds :many
+SELECT * FROM feeds
+WHERE (last_fetched_at IS NULL) OR (last_fetched_at <= $1)
+ORDER BY last_fetched_at ASC
+LIMIT $2;

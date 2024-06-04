@@ -16,5 +16,4 @@ CREATE TABLE feeds(
 
 -- +goose Down
 DROP CONSTRAINT unq_users_id;
-
 DROP TABLE feeds;

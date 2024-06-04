@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 	"time"
@@ -67,6 +68,47 @@ func (cfg *apiConfig) handlerGetAllFeeds(w http.ResponseWriter, r *http.Request)
 	}
 
 	respondWithJSON(w, http.StatusOK, resp)
+}
+
+// Temp
+func (cfg *apiConfig) handlerGetNextToFetchFeeds(w http.ResponseWriter, r *http.Request) {
+	type NextFetchReq struct {
+		Since time.Time `json:"since"`
+		Limit int       `json:"limit"`
+	}
+
+	req := NextFetchReq{}
+	decoder := json.NewDecoder(r.Body)
+	jsonErr := decoder.Decode(&req)
+	if jsonErr != nil {
+		respondWithError(w, http.StatusInternalServerError, "internal server error: failed to parse json")
+		return
+	}
+
+	res, err := cfg.getNextToFetchFeeds(req.Since, int32(req.Limit))
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, res)
+}
+
+func (cfg *apiConfig) getNextToFetchFeeds(since time.Time, limit int32) ([]FeedView, error) {
+	ctx := context.Background()
+	dat, dbErr := cfg.DB.GetNextToFetchFeeds(ctx, database.GetNextToFetchFeedsParams{
+		LastFetchedAt: sql.NullTime{Time: since, Valid: true},
+		Limit:         limit,
+	})
+	if dbErr != nil {
+		return []FeedView{}, errors.New("database error")
+	}
+
+	res := []FeedView{}
+	for _, feed := range dat {
+		res = append(res, DBFeedToView(&feed))
+	}
+	return res, nil
 }
 
 func DBFeedToView(feed *database.Feed) FeedView {
