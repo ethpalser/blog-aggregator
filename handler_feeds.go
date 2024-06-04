@@ -13,11 +13,12 @@ import (
 )
 
 type FeedView struct {
-	Id        uuid.UUID `json:"id"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-	Name      string    `json:"name"`
-	Url       string    `json:"url"`
+	Id            uuid.UUID  `json:"id"`
+	CreatedAt     *time.Time `json:"created_at"`
+	UpdatedAt     *time.Time `json:"updated_at"`
+	Name          string     `json:"name"`
+	Url           string     `json:"url"`
+	LastFetchedAt *time.Time `json:"last_fetched_at"`
 }
 
 func (cfg *apiConfig) handlerCreateFeed(w http.ResponseWriter, r *http.Request, u database.User) {
@@ -49,13 +50,7 @@ func (cfg *apiConfig) handlerCreateFeed(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 
-	respondWithJSON(w, http.StatusAccepted, FeedView{
-		Id:        feed.ID.UUID,
-		CreatedAt: feed.CreatedAt.Time,
-		UpdatedAt: feed.UpdatedAt.Time,
-		Name:      feed.Name.String,
-		Url:       feed.Url.String,
-	})
+	respondWithJSON(w, http.StatusAccepted, DBFeedToView(&feed))
 }
 
 func (cfg *apiConfig) handlerGetAllFeeds(w http.ResponseWriter, r *http.Request) {
@@ -76,10 +71,11 @@ func (cfg *apiConfig) handlerGetAllFeeds(w http.ResponseWriter, r *http.Request)
 
 func DBFeedToView(feed *database.Feed) FeedView {
 	return FeedView{
-		Id:        feed.ID.UUID,
-		CreatedAt: feed.CreatedAt.Time,
-		UpdatedAt: feed.UpdatedAt.Time,
-		Name:      feed.Name.String,
-		Url:       feed.Url.String,
+		Id:            feed.ID.UUID,
+		CreatedAt:     timeOrNil(&feed.CreatedAt),
+		UpdatedAt:     timeOrNil(&feed.UpdatedAt),
+		Name:          feed.Name.String,
+		Url:           feed.Url.String,
+		LastFetchedAt: timeOrNil(&feed.LastFetchedAt),
 	}
 }

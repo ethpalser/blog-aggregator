@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/ethpalser/blog-aggregator/internal/database"
 	"github.com/google/uuid"
@@ -80,13 +82,22 @@ func (cfg *apiConfig) handlerGetUserFeedFollows(w http.ResponseWriter, r *http.R
 	userFeeds := []FeedView{}
 	for _, feed := range dat {
 		userFeeds = append(userFeeds, FeedView{
-			Id:        feed.FeedID,
-			CreatedAt: feed.CreatedAt.Time,
-			UpdatedAt: feed.UpdatedAt.Time,
-			Name:      feed.Name.String,
-			Url:       feed.Url.String,
+			Id:            feed.FeedID,
+			CreatedAt:     timeOrNil(&feed.CreatedAt),
+			UpdatedAt:     timeOrNil(&feed.UpdatedAt),
+			Name:          feed.Name.String,
+			Url:           feed.Url.String,
+			LastFetchedAt: timeOrNil(&feed.LastFetchedAt),
 		})
 	}
 
 	respondWithJSON(w, http.StatusOK, userFeeds)
+}
+
+// Wrapper for sql.NullTime to return value while ignoring errors
+func timeOrNil(val *sql.NullTime) *time.Time {
+	if !val.Valid {
+		return nil
+	}
+	return &val.Time
 }
