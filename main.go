@@ -12,7 +12,8 @@ import (
 )
 
 type apiConfig struct {
-	DB *database.Queries
+	DB          *database.Queries
+	FeedService FeedService
 }
 
 func main() {
@@ -26,8 +27,10 @@ func main() {
 	}
 	defer db.Close()
 
+	dbQueries := database.New(db)
 	apiCfg := apiConfig{
-		DB: database.New(db),
+		DB:          dbQueries,
+		FeedService: NewFeedService(dbQueries),
 	}
 
 	mux := http.NewServeMux()

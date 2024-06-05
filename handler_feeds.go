@@ -4,9 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"encoding/xml"
-	"errors"
-	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -87,54 +84,13 @@ func (cfg *apiConfig) handlerGetNextToFetchFeeds(w http.ResponseWriter, r *http.
 		return
 	}
 
-	res, err := cfg.getNextToFetchFeeds(req.Since, int32(req.Limit))
+	res, err := cfg.FeedService.getFeedsToFetch(req.Since, int32(req.Limit))
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
 	respondWithJSON(w, http.StatusOK, res)
-}
-
-func (cfg *apiConfig) getNextToFetchFeeds(since time.Time, limit int32) ([]FeedView, error) {
-	ctx := context.Background()
-	dat, dbErr := cfg.DB.GetNextToFetchFeeds(ctx, database.GetNextToFetchFeedsParams{
-		LastFetchedAt: sql.NullTime{Time: since, Valid: true},
-		Limit:         limit,
-	})
-	if dbErr != nil {
-		return []FeedView{}, errors.New("database error")
-	}
-
-	res := []FeedView{}
-	for _, feed := range dat {
-		res = append(res, DBFeedToView(&feed))
-	}
-	return res, nil
-}
-
-func (cfg *apiConfig) fetchFeedData(feed FeedView) error {
-	// Perform https request at url
-	resp, httpsErr := http.Get(feed.Url)
-	if httpsErr != nil {
-		return fmt.Errorf("error fetching data: %s", httpsErr)
-	}
-	// Parse XML
-	type RSSFeedData struct {
-		Title string `json:"title"`
-	}
-	dat := RSSFeedData{}
-	decoder := xml.NewDecoder(resp.Body)
-	xmlErr := decoder.Decode(&dat)
-	if xmlErr != nil {
-		return fmt.Errorf("error decoding xml: %s", xmlErr)
-	}
-	// Update feed
-	ctx := context.Background()
-	cfg.DB.UpdateFeedFetchedAt(ctx, uuid.NullUUID{UUID: feed.Id, Valid: true})
-	// Process feed
-	log.Println(dat.Title)
-	return nil
 }
 
 func DBFeedToView(feed *database.Feed) FeedView {
