@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/ethpalser/blog-aggregator/internal/database"
 	"github.com/joho/godotenv"
@@ -53,6 +54,7 @@ func main() {
 		Addr:    ":" + port,
 		Handler: mux,
 	}
+	apiCfg.runWorkers()
 	err := server.ListenAndServe()
 	if err != nil {
 		log.Printf("Server closed: %s", err)
@@ -68,4 +70,13 @@ func handlerReady(w http.ResponseWriter, r *http.Request) {
 
 func handlerError(w http.ResponseWriter, r *http.Request) {
 	respondWithError(w, http.StatusInternalServerError, "Internal Server Error")
+}
+
+func (cfg *apiConfig) runWorkers() {
+	go func(fs FeedService) {
+		for {
+			workerFetchFeeds(fs, 10)
+			time.Sleep(time.Second * 60)
+		}
+	}(cfg.FeedService)
 }

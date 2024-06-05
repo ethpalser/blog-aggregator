@@ -86,25 +86,42 @@ func (rfs *RSSFeedService) processFeed(feed *RSSData) error {
 
 func workerFetchFeeds(fs FeedService, fetchQuantity int) error {
 	// Get feeds to fetch
+	log.Printf("Fetching %v oldest feeds\n", fetchQuantity)
 	toFetch, dbErr := fs.getFeedsToFetch(time.Now().Add(time.Hour*-1), int32(fetchQuantity))
 	if dbErr != nil {
+		log.Printf("Error fetching feching from database: %s\n", dbErr.Error())
 		return dbErr
 	}
+
 	// Get data from feeds
+	log.Printf("Fetching each feed asyncronously\n")
 	wg := sync.WaitGroup{}
 	for _, feed := range *toFetch {
 		wg.Add(1)
 		go func(f *FeedView) {
 			defer wg.Done()
+
+			log.Printf("Fetching from url: %s\n", f.Url)
 			dat, rssErr := fs.fetchFeed(f.Url)
 			if rssErr != nil {
-				log.Printf("Error fetching from RSS feed: %s", rssErr.Error())
+				log.Printf("Error fetching from RSS feed: %s\n", rssErr.Error())
 				return
 			}
+
+			log.Printf("Marking feeds as fetched from url: %s\n", f.Url)
+			dbErr := fs.markFeedFetched(f.Id)
+			if dbErr != nil {
+				log.Printf("Error updating feed in database with id: %v", f.Id)
+				return
+			}
+
+			log.Printf("Processing data returned from url: %s\n", f.Url)
 			fs.processFeed(dat)
 		}(&feed)
 	}
+
 	// Wait for all HTTP fetches to complete and be processed
 	wg.Wait()
+	log.Println("Finished processing all feeds")
 	return nil
 }
