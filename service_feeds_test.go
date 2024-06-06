@@ -1,11 +1,15 @@
 package main
 
 import (
+	"database/sql"
+	"log"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/ethpalser/blog-aggregator/internal/database"
 	"github.com/google/uuid"
+	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -61,8 +65,8 @@ func (fs *RSSFeedServiceMock) fetchFeed(url string) (*[]RSSData, error) {
 	return &res.Items, nil
 }
 
-func (fs *RSSFeedServiceMock) processFeed(feed *RSSData) error {
-	println(feed.Title)
+func (fs *RSSFeedServiceMock) processFeed(feed *FeedView, feedData RSSData) error {
+	println(feedData.Title)
 	return nil
 }
 
@@ -79,8 +83,17 @@ func TestUnit_WorkerFetchFeeds(t *testing.T) {
 }
 
 func TestIntegration_FetchFeedAndProcessFeed(t *testing.T) {
+	// Note: Test sparingly, as this is currently not a in-memory database or containerized database
+	godotenv.Load(".env")
+	dbURL := os.Getenv("CONN")
+
+	db, dbErr := sql.Open("postgres", dbURL)
+	if dbErr != nil {
+		log.Fatalf("Failed to connect to database: %s", dbURL)
+	}
+	defer db.Close()
 	rfs := RSSFeedService{
-		DB: nil, // Not required for test
+		DB: database.New(db),
 	}
 
 	testCases := []FeedView{
@@ -101,7 +114,7 @@ func TestIntegration_FetchFeedAndProcessFeed(t *testing.T) {
 			return
 		}
 		for _, post := range *dat {
-			err := rfs.processFeed(&post)
+			err := rfs.processFeed(&feed, post)
 			if err != nil {
 				assert.Fail(t, "Failed processing data of feed", dat, err.Error())
 				return

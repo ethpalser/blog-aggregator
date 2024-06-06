@@ -39,7 +39,7 @@ type FeedService interface {
 	getFeedsToFetch(since time.Time, n int32) (*[]FeedView, error)
 	markFeedFetched(id uuid.UUID) error
 	fetchFeed(url string) (*[]RSSData, error)
-	processFeed(feed *RSSData) error
+	processFeed(feed *FeedView, feedData RSSData) error
 }
 
 // Service-layer struct that contains business logic and dependencies
@@ -95,8 +95,25 @@ func (rfs *RSSFeedService) fetchFeed(url string) (*[]RSSData, error) {
 	return &dat.RSSChannel.Items, nil
 }
 
-func (rfs *RSSFeedService) processFeed(feed *RSSData) error {
-	println(feed.Title)
+func (rfs *RSSFeedService) processFeed(feed *FeedView, feedData RSSData) error {
+	ctx := context.Background()
+	now := time.Now()
+	// Parse feed's Publish Date
+	var pubAt time.Time
+	if feedData.PublishedAt != "" {
+		pubAt, _ = time.Parse("Mon, 02 Jan 2006 15:04:05 -0700", feedData.PublishedAt)
+	}
+
+	rfs.DB.CreatePost(ctx, database.CreatePostParams{
+		ID:          uuid.New(),
+		CreatedAt:   now,
+		UpdatedAt:   now,
+		Title:       feedData.Title,
+		Url:         feedData.Url,
+		Description: sql.NullString{String: feedData.Description},
+		PublishedAt: sql.NullTime{Time: pubAt},
+		FeedID:      uuid.NullUUID{UUID: feed.Id},
+	})
 	return nil
 }
 
@@ -133,7 +150,11 @@ func workerFetchFeeds(fs FeedService, fetchQuantity int) error {
 
 			log.Printf("Processing data returned from url: %s\n", f.Url)
 			for _, post := range *dat {
-				fs.processFeed(&post)
+				err := fs.processFeed(f, post)
+				if err != nil {
+					log.Printf("Failed processing data of feed: %s", err.Error())
+					return
+				}
 			}
 		}(&feed)
 	}
