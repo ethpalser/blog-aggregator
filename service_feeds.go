@@ -15,14 +15,30 @@ import (
 	"github.com/google/uuid"
 )
 
+type RSS struct {
+	XMLName    xml.Name   `xml:"rss"`
+	RSSChannel RSSChannel `xml:"channel"`
+}
+
+type RSSChannel struct {
+	XMLName     xml.Name  `xml:"channel"`
+	Title       string    `xml:"title"`
+	Description string    `xml:"description"`
+	Items       []RSSData `xml:"item"`
+}
+
 type RSSData struct {
-	Title string `json:"title"`
+	XMLName     xml.Name `xml:"item"`
+	Title       string   `xml:"title"`
+	Url         string   `xml:"link"`
+	Description string   `xml:"description"`
+	PublishedAt string   `xml:"pubDate"`
 }
 
 type FeedService interface {
 	getFeedsToFetch(since time.Time, n int32) (*[]FeedView, error)
 	markFeedFetched(id uuid.UUID) error
-	fetchFeed(url string) (*RSSData, error)
+	fetchFeed(url string) (*[]RSSData, error)
 	processFeed(feed *RSSData) error
 }
 
@@ -63,20 +79,20 @@ func (rfs *RSSFeedService) markFeedFetched(id uuid.UUID) error {
 	return nil
 }
 
-func (rfs *RSSFeedService) fetchFeed(url string) (*RSSData, error) {
+func (rfs *RSSFeedService) fetchFeed(url string) (*[]RSSData, error) {
 	// Perform https request at url
 	resp, httpsErr := http.Get(url)
 	if httpsErr != nil {
 		return nil, fmt.Errorf("error fetching data: %s", httpsErr)
 	}
 	// Parse XML
-	dat := RSSData{}
+	dat := RSS{}
 	decoder := xml.NewDecoder(resp.Body)
 	xmlErr := decoder.Decode(&dat)
 	if xmlErr != nil {
 		return nil, fmt.Errorf("error decoding xml: %s", xmlErr)
 	}
-	return &dat, nil
+	return &dat.RSSChannel.Items, nil
 }
 
 func (rfs *RSSFeedService) processFeed(feed *RSSData) error {
@@ -116,7 +132,9 @@ func workerFetchFeeds(fs FeedService, fetchQuantity int) error {
 			}
 
 			log.Printf("Processing data returned from url: %s\n", f.Url)
-			fs.processFeed(dat)
+			for _, post := range *dat {
+				fs.processFeed(&post)
+			}
 		}(&feed)
 	}
 
